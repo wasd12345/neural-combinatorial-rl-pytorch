@@ -23,10 +23,12 @@ This implementation can be extended to support other combinatorial optimization 
 ## Dependencies
 
 * Python=3.6 (should be OK with v >= 3.4)
-* PyTorch=0.2, 0.3 and 0.4
+* PyTorch=0.2 and 0.3
 * tqdm
 * matplotlib
 * [tensorboard_logger](https://github.com/TeamHG-Memex/tensorboard_logger)
+
+PyTorch 0.4 compatibility is available on branch `pytorch-0.4`.
 
 ## TSP Results
 
@@ -63,13 +65,17 @@ Plot the pointer network's attention layer with the argument `--plot_attention T
 
 ## TODO
 
+* [ ] Range of sizes during training for problem instances (OK to have same per batch, but vary between batches)
+* [ ] Other combinatorial optimization problems [knapsack/bin packing, set cover]
+* [ ] Improved RL module
+* [ ] Why is critic network not helping?
+* [ ] Finish implementing beam search decoding to support > 1 beam
+
 * [ ] Add RL pretraining-Sampling
 * [ ] Add RL pretraining-Active Search
 * [ ] Active Search
-* [ ] Asynchronous training a la A3C
 * [X] Refactor `USE_CUDA` variable
-* [ ] Finish implementing beam search decoding to support > 1 beam
-* [ ] Add support for variable length inputs
+* [ ] Add support for variable length inputs (he meant per batch. More important is to just have range of sizes during training instead of current fixed size setting (e.g. tsp_20))
 
 ## Acknowledgements
 

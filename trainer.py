@@ -236,11 +236,12 @@ for i in range(epoch, epoch + int(args['n_epochs'])):
                     float(args['max_grad_norm']), norm_type=2)
 
             actor_optim.step()
-            actor_scheduler.step()
+            actor_scheduler.step() #!!!!!!!!!!! Move move this outside this loop to have one step per epoch??
 
             critic_exp_mvg_avg = critic_exp_mvg_avg.detach()
 
-            #critic_scheduler.step()
+            #critic_scheduler.step() #!!!!!!!!!!! Move move this outside this loop to have one step per epoch?? 
+            #!!!!!!! Maybe this is why he says his critic was bad? Too many lr steps since doing per batch, not per eopch?
 
             #R = R.detach()
             #critic_loss = critic_mse(v.squeeze(1), R)
