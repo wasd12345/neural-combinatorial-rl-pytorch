@@ -127,7 +127,8 @@ def create_dataset(
     
     # Generate a training set of size train_size
     for i in trange(train_size):
-        x = torch.randperm(data_len)
+        x = torch.randperm(data_len*scale)
+        x = x[:data_len]
         if max_offset>0:
             x += torch.randint(0,data_len,size=(1,)).long()
         train_set.write(to_string(x))
@@ -135,7 +136,8 @@ def create_dataset(
     print('Creating validation data set for {}...'.format(val_task))
     
     for i in trange(val_size):
-        x = torch.randperm(data_len)
+        x = torch.randperm(data_len*scale)
+        x = x[:data_len]
         if max_offset>0:
             x += torch.randint(0,data_len,size=(1,)).long()        
         val_set.write(to_string(x))

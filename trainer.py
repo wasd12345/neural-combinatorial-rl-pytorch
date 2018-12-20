@@ -129,9 +129,9 @@ if __name__ == "__main__":
     MAX_OFFSET=5 #0
 
     #For non-consecutive integer sorting task for "sort_{N}"
-    #Draw N integers without replacement, but from {1,...,N*SCALE}
-    #instead of consecutive {1,...,N}
-    SCALE=3
+    #Draw N integers without replacement, but from {0, ..., N*SCALE -1}
+    #instead of consecutive {0, ..., N -1}
+    SCALE=5
     
     
     
