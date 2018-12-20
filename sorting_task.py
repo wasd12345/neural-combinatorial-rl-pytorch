@@ -171,7 +171,7 @@ if __name__ == '__main__':
         print('Expected answer: {}, Actual answer: {}'.format(answer, res.data))
         """
     elif int(sys.argv[1]) == 1:
-        create_sorting_dataset(1000, 100, 'data', 10, 123)
+        create_dataset(1000, 100, 'data', 10, 123)
     elif int(sys.argv[1]) == 2:
 
         sorting_data = SortingDataset('data', 'sorting-size-1000-len-10-train.txt',

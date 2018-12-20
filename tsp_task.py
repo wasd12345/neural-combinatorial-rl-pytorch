@@ -225,14 +225,15 @@ class TSPDataset(Dataset):
             with open(dataset_fname, 'r') as dset:
                 for l in tqdm(dset):
                     inputs, outputs = l.split(' output ')
-                    sample = torch.zeros(1, )
+#                    sample = torch.zeros(1, )
                     x = np.array(inputs.split(), dtype=np.float32).reshape([-1, 2]).T
                     #y.append(np.array(outputs.split(), dtype=np.int32)[:-1]) # skip the last one
                     self.data_set.append(x)
         else:
             # randomly sample points uniformly from [0, 1]
             for l in tqdm(range(num_samples)):
-                x = torch.FloatTensor(2, size).uniform_(0, 1)
+                DIMENSION = 2 #!!!!!!!!!!!!! consider cross training over few dimensions
+                x = torch.FloatTensor(DIMENSION, size).uniform_(0, 1)
                 #x = torch.cat([start, x], 1)
                 self.data_set.append(x)
 
@@ -245,4 +246,7 @@ class TSPDataset(Dataset):
         return self.data_set[idx]
     
 if __name__ == '__main__':
-    paths = download_google_drive_file('data/tsp', 'tsp', '', '50')
+    DATADIR = os.path.join('data','tsp')
+    if not os.path.exists(DATADIR):
+        os.makedirs(DATADIR)
+    paths = download_google_drive_file(DATADIR, 'tsp', '', '50')

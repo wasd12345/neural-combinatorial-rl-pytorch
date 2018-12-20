@@ -65,11 +65,13 @@ Plot the pointer network's attention layer with the argument `--plot_attention T
 
 ## TODO
 
-* [ ] Range of sizes during training for problem instances (OK to have same per batch, but vary between batches)
+* [ ] Range of sizes during training for problem instances (OK to have same per batch, but vary between batches; learned heuristics should transfer)
 * [ ] Other combinatorial optimization problems [knapsack/bin packing, set cover]
 * [ ] Improved RL module
 * [ ] Why is critic network not helping?
 * [ ] Finish implementing beam search decoding to support > 1 beam
+* [ ] 2D -> N-Dim TSP [1) as fixed parameter e.g. D=3; 2) D=random variable over small single digit range [2,5] since some heuristics should transfer across dimensions]
+* [ ] Multi-task? 
 
 * [ ] Add RL pretraining-Sampling
 * [ ] Add RL pretraining-Active Search
