@@ -125,6 +125,15 @@ if __name__ == "__main__":
     NUM_WORKERS=0 #Justdo for now since Windows is having issues with python multiprocessing... #!!!!!!!!!!!
     
     
+    #For translated sorting task
+    MAX_OFFSET=5 #0
+
+    #For non-consecutive integer sorting task for "sort_{N}"
+    #Draw N integers without replacement, but from {1,...,N*SCALE}
+    #instead of consecutive {1,...,N}
+    SCALE=3
+    
+    
     
     
     # Pretty print the run args
@@ -159,7 +168,10 @@ if __name__ == "__main__":
             int(args['train_size']),
             int(args['val_size']),
             data_dir,
-            data_len=INSTANCE_SIZE)
+            data_len=INSTANCE_SIZE,
+            max_offset=MAX_OFFSET,
+            scale=SCALE
+            )
         training_dataset = sorting_task.SortingDataset(train_fname)
         val_dataset = sorting_task.SortingDataset(val_fname)
     elif COP == 'tsp':
@@ -412,7 +424,10 @@ if __name__ == "__main__":
                     int(args['train_size']),
                     int(args['val_size']),
                     data_dir,
-                    data_len=INSTANCE_SIZE)
+                    data_len=INSTANCE_SIZE,
+                    max_offset=MAX_OFFSET,
+                    scale=SCALE
+                    )
                 training_dataset = sorting_task.SortingDataset(train_fname)
                 training_dataloader = DataLoader(training_dataset, batch_size=int(args['batch_size']),
                         shuffle=True, num_workers=1)

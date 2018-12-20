@@ -84,7 +84,10 @@ def create_dataset(
         #test_size,
         data_dir,
         data_len,
-        seed=None):
+        seed=None,
+        max_offset=0,
+        scale=1
+        ):
 
     if seed is not None:
         torch.manual_seed(seed)
@@ -125,12 +128,16 @@ def create_dataset(
     # Generate a training set of size train_size
     for i in trange(train_size):
         x = torch.randperm(data_len)
+        if max_offset>0:
+            x += torch.randint(0,data_len,size=(1,)).long()
         train_set.write(to_string(x))
 
     print('Creating validation data set for {}...'.format(val_task))
     
     for i in trange(val_size):
         x = torch.randperm(data_len)
+        if max_offset>0:
+            x += torch.randint(0,data_len,size=(1,)).long()        
         val_set.write(to_string(x))
 
 #    print('Creating test data set for {}...'.format(test_task))
@@ -194,7 +201,9 @@ if __name__ == '__main__':
         print('Expected answer: {}, Actual answer: {}'.format(answer, res.data))
         """
     elif int(sys.argv[1]) == 1:
-        create_dataset(1000, 100, 'data', 10, 123)
+        MAX_OFFSET=5
+        SCALE=3
+        create_dataset(1000, 100, 'data', 10, 123, max_offset=MAX_OFFSET, scale=SCALE)
     elif int(sys.argv[1]) == 2:
 
         sorting_data = SortingDataset('data', 'sorting-size-1000-len-10-train.txt',
