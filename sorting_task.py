@@ -32,6 +32,7 @@ def reward(sample_solution, USE_CUDA=False):
     Returns:
         [batch_size] containing trajectory rewards
     """
+    
     batch_size = sample_solution[0].size(0)
     sourceL = len(sample_solution)
 
@@ -53,7 +54,29 @@ def reward(sample_solution, USE_CUDA=False):
         # if, for any, current > longest, update longest
         mask = torch.gt(current, longest)
         longest[mask] = current[mask]
-    return -torch.div(longest, sourceL)
+
+    monotonic_reward = -torch.div(longest, sourceL)
+
+
+    #In addition to monotonic sequence reward, also 
+    #have a term in the reward for correct location,
+    #i.e. negatively correlated w/ Hamming Distance.
+    #!!!!! ASSUMES all solutions in this batch are same length
+    #!!!! But sort each individually in case decide to not have just {1,...,n}
+    #and instead also have translation/offset e.g. {a,...,a+n}
+    #or nonconsecutive integers
+    tt = torch.stack(sample_solution,dim=2)
+    tt_sort, _ = torch.sort(tt,dim=2)
+    hamming_reward = -torch.div(torch.sum(torch.eq(tt,tt_sort),dim=2).float(), float(sourceL))
+#    print('monotonic_reward',monotonic_reward)
+#    print('sample_solution',sample_solution)
+#    print('hamming_reward',hamming_reward)
+    #Final reward is some comnvex combination of the two rewards
+    LAMBDA = .25
+    final_reward = torch.lerp(monotonic_reward, hamming_reward, LAMBDA)
+#    print('final reward', final_reward)
+    return final_reward
+
 
 def create_dataset(
         train_size,

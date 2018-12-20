@@ -77,9 +77,9 @@ if __name__ == "__main__":
     
     
     args = {
-    #'task': 'sort_10',
-    'task': 'tsp_50',
-    'batch_size': 128,
+    'task': 'sort_10',
+#    'task': 'tsp_50',
+    'batch_size': 12,#8,
     'train_size': 10000,#1000000,
     'val_size': 1000,#10000,
     # Network
