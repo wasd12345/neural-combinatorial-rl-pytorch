@@ -249,4 +249,4 @@ if __name__ == '__main__':
     DATADIR = os.path.join('data','tsp')
     if not os.path.exists(DATADIR):
         os.makedirs(DATADIR)
-    paths = download_google_drive_file(DATADIR, 'tsp', '', '50')
+    paths = download_google_drive_file(DATADIR, 'tsp', '', '5')

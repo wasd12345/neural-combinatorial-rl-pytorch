@@ -79,9 +79,11 @@ if __name__ == "__main__":
     
     args = {
 #    'task': 'sort_10',
-    'task': 'tsp_50',
+#    'task': 'tsp_50',
+#    'task': 'tsp_20',
+    'task': 'tsp_5',
     'batch_size': 12,
-    'train_size': 100000,#1000000,
+    'train_size': 1000000,#1000000,
     'val_size': 10000,#10000,
     # Network
     'embedding_dim': 128, #Dimension of input embedding
@@ -97,7 +99,7 @@ if __name__ == "__main__":
     # Training
     'actor_net_lr': 1e-4, #Set the learning rate for the actor network")
     'critic_net_lr': 1e-4, #Set the learning rate for the critic network")
-    'actor_lr_decay_step': 5000,
+    'actor_lr_decay_step': 1000,
     'critic_lr_decay_step': 5000,
     'actor_lr_decay_rate': 0.96,
     'critic_lr_decay_rate': 0.96,
@@ -136,7 +138,8 @@ if __name__ == "__main__":
     
     #Save figures of TSP tours (for 2D TSP only)
     SAVE_TSP_TOURS = True
-    
+    #Save rewards for every instance during training/validation
+    SAVE_OUT = True
     
     #Type of critic to use in actor-ctiric method.
     #'EMA' for exponential mving average
@@ -275,6 +278,8 @@ if __name__ == "__main__":
     if not args['is_train']:
         args['n_epochs'] = '1'
      
+    R_train = []
+    R_val = []
     
     epoch = int(args['epoch_start'])
     for i in range(epoch, epoch + int(args['n_epochs'])):
@@ -300,7 +305,11 @@ if __name__ == "__main__":
                 #tensor is batchsize x dimension. The action (which set element) to choose.
                 #e.g. for sorting, dimension is just 1 (an integer), vs. for 
                 #2D TSP, dimension is 2 (x,y).
-                                
+                #TRAINING analysis
+                #Optionally save out rewards"
+                if SAVE_OUT:
+                    R_train.append(list(R.data.numpy()))
+                      
             
                 if batch_id == 0:
                     critic_exp_mvg_avg = R.mean()
@@ -372,10 +381,43 @@ if __name__ == "__main__":
                             example_output.append(actions_idxs[idx][0].item())
                         else:
                             example_output.append(action[0].item())  # <-- ?? 
-                        example_input.append(sample_batch[0, :, idx][0])
-                    #print('Example train input: {}'.format(example_input))
+                        example_input.append(sample_batch[0, :, idx])
+    
+                    if SAVE_OUT:
+                        for mm in range(10):
+                            try:
+                                np.save(os.path.join(save_dir,f'R_train_{step}.npy'),np.array(R_train))
+                                break
+                            except:
+                                continue
+                        #Clear the rewards lists                  
+                        R_train = []
+#                    print('Example train input: {}'.format(example_input))
                     print('Example train output: {}'.format(example_output))
                     
+                    
+                    #For TSP 2D, save figs of the tours
+                    if task[0]=='tsp' and SAVE_TSP_TOURS:
+                        x = [nn[0].item() for nn in example_input]
+                        y = [nn[1].item() for nn in example_input]
+                        plt.figure()
+                        plt.title('Example 2D TSP Tour',fontsize=20)
+                        for cc in range(len(example_output)):
+                            plt.plot([x[cc],x[cc-1]],[y[cc],y[cc-1]],marker='o',color='k',linestyle='--')
+                        #And the final leg:
+                        plt.plot([x[example_output[-1]],x[example_output[0]]],
+                                 [y[example_output[-1]],y[example_output[0]]],
+                                 marker='o',color='k',linestyle='--')
+                        #Tour start/end point:
+                        plt.plot(x[example_output[0]],y[example_output[0]],marker='o',color='r')
+                        for mm in range(10):
+                            try:
+                                plt.savefig(os.path.join(save_dir, f'TSP_Tour_train_{step}_0.png'))
+                                break
+                            except:
+                                continue                        
+                        plt.close('all')
+                        
                     
                     #TRAINING analysis
                     #Optionally save some things for analysis:
@@ -408,6 +450,9 @@ if __name__ == "__main__":
     
             R, probs, actions, action_idxs = model(bat)
             
+            if SAVE_OUT:
+                R_val.append(list(R.data.numpy()))
+                
             avg_reward.append(R[0].item())
             val_step += 1.
     
@@ -430,6 +475,15 @@ if __name__ == "__main__":
                 print('Example test output: {}'.format(example_output))
                 print('Example test reward: {}'.format(R[0].item()))
         
+                if SAVE_OUT:
+                    for mm in range(10):
+                        try:
+                            np.save(os.path.join(save_dir,f'R_val_{step}.npy'),np.array(R_val))
+                            break
+                        except:
+                            continue
+                    #Clear the rewards lists                  
+                    R_val = []  
             
                 if args['plot_attention']:
                     probs = torch.cat(probs, 0)
@@ -442,15 +496,21 @@ if __name__ == "__main__":
                     y = [nn[1].item() for nn in example_input]
                     plt.figure()
                     plt.title('Example 2D TSP Tour',fontsize=20)
-                    for cc in range(len(example_output)-1):
-                        plt.plot([x[cc],x[cc+1]],[y[cc],y[cc+1]],marker='o',color='k',linestyle='--')
+                    for cc in range(len(example_output)):
+                        plt.plot([x[cc],x[cc-1]],[y[cc],y[cc-1]],marker='o',color='k',linestyle='--')
                     #And the final leg:
                     plt.plot([x[example_output[-1]],x[example_output[0]]],
                              [y[example_output[-1]],y[example_output[0]]],
                              marker='o',color='k',linestyle='--')
                     #Tour start/end point:
                     plt.plot(x[example_output[0]],y[example_output[0]],marker='o',color='r')
-                    plt.savefig(os.path.join(save_dir, 'TSP_Tour_val_{}.png'.format(int(val_step))))
+                    for mm in range(10):
+                        try:
+                            plt.savefig(os.path.join(save_dir, 'TSP_Tour_val_{}.png'.format(int(val_step))))
+                            break
+                        except:
+                            continue                      
+                    plt.close('all')
                     
                     
         print('Validation overall avg_reward: {}'.format(np.mean(avg_reward)))
