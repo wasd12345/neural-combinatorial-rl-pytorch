@@ -83,8 +83,8 @@ if __name__ == "__main__":
 #    'task': 'tsp_20',
     'task': 'tsp_5',
     'batch_size': 12,
-    'train_size': 1000000,#1000000,
-    'val_size': 10000,#10000,
+    'train_size': 1000,#000,#1000000,
+    'val_size': 100,#10000,
     # Network
     'embedding_dim': 128, #Dimension of input embedding
     'hidden_dim': 128,#Dimension of hidden layers in Enc/Dec')
@@ -173,7 +173,7 @@ if __name__ == "__main__":
     
     
     if COP == 'sort':
-        import sorting_task
+        import tasks.sorting_task as sorting_task
         
         input_dim = 1
         reward_fn = sorting_task.reward
@@ -187,8 +187,23 @@ if __name__ == "__main__":
             )
         training_dataset = sorting_task.SortingDataset(train_fname)
         val_dataset = sorting_task.SortingDataset(val_fname)
+    if COP == 'highlowhigh':
+        import tasks.highlowhigh_task as highlowhigh_task
+        
+        input_dim = 1
+        reward_fn = highlowhigh_task.reward
+        train_fname, val_fname = highlowhigh_task.create_dataset(
+            int(args['train_size']),
+            int(args['val_size']),
+            data_dir,
+            data_len=INSTANCE_SIZE,
+            max_offset=MAX_OFFSET,
+            scale=SCALE
+            )
+        training_dataset = highlowhigh_task.HighLowHighDataset(train_fname)
+        val_dataset = highlowhigh_task.HighLowHighDataset(val_fname)        
     elif COP == 'tsp':
-        import tsp_task
+        import tasks.tsp_task as tsp_task
     
         input_dim = 2 #consider multiple dimensions...
         reward_fn = tsp_task.reward
@@ -555,3 +570,15 @@ if __name__ == "__main__":
                 training_dataset = sorting_task.SortingDataset(train_fname)
                 training_dataloader = DataLoader(training_dataset, batch_size=int(args['batch_size']),
                         shuffle=True, num_workers=1)
+            if COP == 'highlowhigh':
+                train_fname, _ = highlowhigh_task.create_dataset(
+                    int(args['train_size']),
+                    int(args['val_size']),
+                    data_dir,
+                    data_len=INSTANCE_SIZE,
+                    max_offset=MAX_OFFSET,
+                    scale=SCALE
+                    )
+                training_dataset = highlowhigh_task.HighLowHighDataset(train_fname)
+                training_dataloader = DataLoader(training_dataset, batch_size=int(args['batch_size']),
+                        shuffle=True, num_workers=1)                
