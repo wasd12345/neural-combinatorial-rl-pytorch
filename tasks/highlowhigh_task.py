@@ -37,27 +37,58 @@ def reward(sample_solution, USE_CUDA=False):
         longest = longest.cuda()
         current = current.cuda()
 
+    #sequence reward
+    for i in range(1, sourceL):
+        #For even parity: [the "high" elements]
+        if i%2==0:
+            # compare solution[i-1] < solution[i] 
+            res = torch.lt(sample_solution[i-1], sample_solution[i])
+            # if res[i,j] == 1, increment length of current sorted subsequence
+            current += res.float()
+            # else, reset current to 1
+            current[torch.eq(res, 0)] = 1
+            #current[torch.eq(res, 0)] -= 1
+            # if, for any, current > longest, update longest
+            mask = torch.gt(current, longest)
+            longest[mask] = current[mask]
+        #For odd parity: [the "low" elements]
+        elif i%2==1:
+            # compare solution[i-1] > solution[i] 
+            res = torch.gt(sample_solution[i-1], sample_solution[i])
+            # if res[i,j] == 1, increment length of current sorted subsequence
+            current += res.float()
+            # else, reset current to 1
+            current[torch.eq(res, 0)] = 1
+            #current[torch.eq(res, 0)] -= 1
+            # if, for any, current > longest, update longest
+            mask = torch.gt(current, longest)
+            longest[mask] = current[mask]            
 
+    sequence_reward = -torch.div(longest, sourceL)
+
+
+    #Hamming distance reward
     s = [mm for mm in range(sourceL)]
     inds = []
     par = 0
     for dd in range(sourceL):
-        inds.append([s.pop(par-1))
+        inds.extend([s.pop(par-1)])
         par = (par+1)%2
-    print(inds)
     
-    
-    d=ddd
     #!!!!! ASSUMES all solutions in this batch are same length
     tt = torch.stack(sample_solution,dim=2)
     tt_sort, _ = torch.sort(tt,dim=2)
+    gt = tt_sort[:,0,inds]
+#    print(tt_sort)
+#    print(gt)
     
-    
-    
-    hamming_reward = -torch.div(torch.sum(torch.eq(tt,tt_sort),dim=2).float(), float(sourceL))
-    print('sample_solution',sample_solution)
-    print('hamming_reward',hamming_reward)
-    return hamming_reward
+    hamming_reward = -torch.div(torch.sum(torch.eq(tt,gt),dim=2).float(), float(sourceL))
+#    print('sample_solution',sample_solution)
+#    print('hamming_reward',hamming_reward)
+    LAMBDA = .25
+    final_reward = torch.lerp(sequence_reward, hamming_reward, LAMBDA)
+#    print('final reward', final_reward)
+    return final_reward
 
 
 def create_dataset(

@@ -81,10 +81,11 @@ if __name__ == "__main__":
 #    'task': 'sort_10',
 #    'task': 'tsp_50',
 #    'task': 'tsp_20',
-    'task': 'tsp_5',
+#    'task': 'tsp_5',
+    'task': 'highlowhigh_10',
     'batch_size': 12,
-    'train_size': 1000,#000,#1000000,
-    'val_size': 100,#10000,
+    'train_size': 100000,#000,#1000000,
+    'val_size': 1000,#10000,
     # Network
     'embedding_dim': 128, #Dimension of input embedding
     'hidden_dim': 128,#Dimension of hidden layers in Enc/Dec')
@@ -197,8 +198,8 @@ if __name__ == "__main__":
             int(args['val_size']),
             data_dir,
             data_len=INSTANCE_SIZE,
-            max_offset=MAX_OFFSET,
-            scale=SCALE
+            max_offset=0,#MAX_OFFSET,
+            scale=1#SCALE
             )
         training_dataset = highlowhigh_task.HighLowHighDataset(train_fname)
         val_dataset = highlowhigh_task.HighLowHighDataset(val_fname)        
