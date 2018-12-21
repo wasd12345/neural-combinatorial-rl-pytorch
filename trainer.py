@@ -6,6 +6,7 @@ from tqdm import tqdm
 
 import pprint as pp
 import numpy as np
+import matplotlib.pyplot as plt
 
 import torch
 print(torch.__version__)
@@ -77,11 +78,11 @@ if __name__ == "__main__":
     
     
     args = {
-    'task': 'sort_10',
-#    'task': 'tsp_50',
-    'batch_size': 12,#8,
-    'train_size': 10000,#1000000,
-    'val_size': 1000,#10000,
+#    'task': 'sort_10',
+    'task': 'tsp_50',
+    'batch_size': 12,
+    'train_size': 100000,#1000000,
+    'val_size': 10000,#10000,
     # Network
     'embedding_dim': 128, #Dimension of input embedding
     'hidden_dim': 128,#Dimension of hidden layers in Enc/Dec')
@@ -133,6 +134,15 @@ if __name__ == "__main__":
     #instead of consecutive {0, ..., N -1}
     SCALE=5
     
+    #Save figures of TSP tours (for 2D TSP only)
+    SAVE_TSP_TOURS = True
+    
+    
+    #Type of critic to use in actor-ctiric method.
+    #'EMA' for exponential mving average
+    #'net' for neural network critic
+    critic_type = 'EMA' #'net'
+    
     
     
     
@@ -177,7 +187,7 @@ if __name__ == "__main__":
     elif COP == 'tsp':
         import tsp_task
     
-        input_dim = 2
+        input_dim = 2 #consider multiple dimensions...
         reward_fn = tsp_task.reward
         val_fname = tsp_task.create_dataset(
             problem_size=str(INSTANCE_SIZE),
@@ -229,30 +239,35 @@ if __name__ == "__main__":
     except:
         pass
     
-    #critic_mse = torch.nn.MSELoss()
-    #critic_optim = optim.Adam(model.critic_net.parameters(), lr=float(args['critic_net_lr']))
+
     actor_optim = optim.Adam(model.actor_net.parameters(), lr=float(args['actor_net_lr']))
     
     actor_scheduler = lr_scheduler.MultiStepLR(actor_optim,
             range(int(args['actor_lr_decay_step']), int(args['actor_lr_decay_step']) * 1000,
                 int(args['actor_lr_decay_step'])), gamma=float(args['actor_lr_decay_rate']))
     
-    #critic_scheduler = lr_scheduler.MultiStepLR(critic_optim,
-    #        range(int(args['critic_lr_decay_step']), int(args['critic_lr_decay_step']) * 1000,
-    #            int(args['critic_lr_decay_step'])), gamma=float(args['critic_lr_decay_rate']))
+    if critic_type=='net':
+        critic_mse = torch.nn.MSELoss()
+        critic_optim = optim.Adam(model.critic_net.parameters(), lr=float(args['critic_net_lr']))        
+        critic_scheduler = lr_scheduler.MultiStepLR(critic_optim,
+                range(int(args['critic_lr_decay_step']), int(args['critic_lr_decay_step']) * 1000,
+                    int(args['critic_lr_decay_step'])), gamma=float(args['critic_lr_decay_rate']))
     
     training_dataloader = DataLoader(training_dataset, batch_size=int(args['batch_size']),
         shuffle=True, num_workers=NUM_WORKERS)
     
     validation_dataloader = DataLoader(val_dataset, batch_size=1, shuffle=True, num_workers=NUM_WORKERS)
     
-    critic_exp_mvg_avg = torch.zeros(1)
-    beta = args['critic_beta']
+    if critic_type=='EMA':
+        critic_exp_mvg_avg = torch.zeros(1)
+        beta = args['critic_beta']
     
     if args['use_cuda']:
         model = model.cuda()
-        #critic_mse = critic_mse.cuda()
-        critic_exp_mvg_avg = critic_exp_mvg_avg.cuda()
+        if critic_type=='net':
+            critic_mse = critic_mse.cuda()
+        if critic_type=='EMA':
+            critic_exp_mvg_avg = critic_exp_mvg_avg.cuda()
     
     step = 0
     val_step = 0
@@ -278,6 +293,14 @@ if __name__ == "__main__":
                     bat = bat.cuda()
     
                 R, probs, actions, actions_idxs = model(bat)
+                # - R is [1 x batchsize] the reward per example in batch
+                # - probs is list of tensors. List len is instance_size, each 
+                #tensor is batchsize. The probability of each of the set elements
+                # - actions is list of tensors. List len is instance_size, each 
+                #tensor is batchsize x dimension. The action (which set element) to choose.
+                #e.g. for sorting, dimension is just 1 (an integer), vs. for 
+                #2D TSP, dimension is 2 (x,y).
+                                
             
                 if batch_id == 0:
                     critic_exp_mvg_avg = R.mean()
@@ -340,8 +363,8 @@ if __name__ == "__main__":
                     log_value('nll', nll.mean().item(), step)
     
                 if step % int(args['log_step']) == 0:
-                    print('epoch: {}, train_batch_id: {}, avg_reward: {}'.format(
-                        i, batch_id, R.mean().item()))
+                    print('epoch: {}, train_batch_id: {}, avg_reward: {} +/= {}'.format(
+                        i, batch_id, R.mean().item(), R.std().item()))
                     example_output = []
                     example_input = []
                     for idx, action in enumerate(actions):
@@ -352,6 +375,17 @@ if __name__ == "__main__":
                         example_input.append(sample_batch[0, :, idx][0])
                     #print('Example train input: {}'.format(example_input))
                     print('Example train output: {}'.format(example_output))
+                    
+                    
+                    #TRAINING analysis
+                    #Optionally save some things for analysis:
+                    #example_input
+                    #example_output
+                    #avg_reward [to get mean and variance]
+            #        if SAVE_OUT:
+            #            ...                    
+    
+    
     
         # Use beam search decoding for validation
         model.actor_net.decoder.decode_type = "beam_search"
@@ -392,7 +426,7 @@ if __name__ == "__main__":
                         example_input.append(bat[0, :, idx].item())
 
                 print('Step: {}'.format(batch_id))
-                #print('Example test input: {}'.format(example_input))
+                print('Example test input: {}'.format(example_input))
                 print('Example test output: {}'.format(example_output))
                 print('Example test reward: {}'.format(R[0].item()))
         
@@ -401,9 +435,39 @@ if __name__ == "__main__":
                     probs = torch.cat(probs, 0)
                     plot_attention(example_input,
                             example_output, probs.data.cpu().numpy())
+                    
+                #For TSP 2D, save figs of the tours
+                if task[0]=='tsp' and SAVE_TSP_TOURS:
+                    x = [nn[0].item() for nn in example_input]
+                    y = [nn[1].item() for nn in example_input]
+                    plt.figure()
+                    plt.title('Example 2D TSP Tour',fontsize=20)
+                    for cc in range(len(example_output)-1):
+                        plt.plot([x[cc],x[cc+1]],[y[cc],y[cc+1]],marker='o',color='k',linestyle='--')
+                    #And the final leg:
+                    plt.plot([x[example_output[-1]],x[example_output[0]]],
+                             [y[example_output[-1]],y[example_output[0]]],
+                             marker='o',color='k',linestyle='--')
+                    #Tour start/end point:
+                    plt.plot(x[example_output[0]],y[example_output[0]],marker='o',color='r')
+                    plt.savefig(os.path.join(save_dir, 'TSP_Tour_val_{}.png'.format(int(val_step))))
+                    
+                    
         print('Validation overall avg_reward: {}'.format(np.mean(avg_reward)))
         print('Validation overall reward var: {}'.format(np.var(avg_reward)))
-         
+        
+        
+
+        #VALIDATION analysis
+        #Optionally save some things for analysis:
+        #example_input
+        #example_output
+        #avg_reward [to get mean and variance]
+#        if SAVE_OUT:
+#            ...
+
+            
+            
         if args['is_train']:
             model.actor_net.decoder.decode_type = "stochastic"
              
