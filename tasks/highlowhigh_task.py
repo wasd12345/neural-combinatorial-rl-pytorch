@@ -197,7 +197,7 @@ if __name__ == '__main__':
         create_dataset(1000, 100, 'data', 10, 123, max_offset=MAX_OFFSET, scale=SCALE)
     elif int(sys.argv[1]) == 2:
 
-        hlh_data = HighLowHighDataset('data', 'high-low-high-size-1000-len-10-train.txt',
+        hlh_data = HighLowHighDataset(os.pardir(),'data', 'high-low-high-size-1000-len-10-train.txt',
             'high-low-high-size-100-len-10-val.txt')
         
         for i in range(len(hlh_data)):

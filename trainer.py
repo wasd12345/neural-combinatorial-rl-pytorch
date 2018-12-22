@@ -78,13 +78,13 @@ if __name__ == "__main__":
     
     
     args = {
-#    'task': 'sort_10',
+    'task': 'sort_10',
 #    'task': 'tsp_50',
 #    'task': 'tsp_20',
 #    'task': 'tsp_5',
-    'task': 'highlowhigh_10',
+#    'task': 'highlowhigh_10',
     'batch_size': 12,
-    'train_size': 100000,#000,#1000000,
+    'train_size': 10000,#000,#1000000,
     'val_size': 1000,#10000,
     # Network
     'embedding_dim': 128, #Dimension of input embedding
@@ -148,6 +148,12 @@ if __name__ == "__main__":
     critic_type = 'EMA' #'net'
     
     
+    #If using Proximal Policy Optimization (PPO)
+    USE_PPO = False#True #False#True
+    PPO_OBJECTIVE = 'vanilla' #'clipped'
+    PPO_CLIPPED_EPSILON = .2
+    PPO_ITERS_PER_STEP = 5
+
     
     
     # Pretty print the run args
@@ -188,7 +194,7 @@ if __name__ == "__main__":
             )
         training_dataset = sorting_task.SortingDataset(train_fname)
         val_dataset = sorting_task.SortingDataset(val_fname)
-    if COP == 'highlowhigh':
+    elif COP == 'highlowhigh':
         import tasks.highlowhigh_task as highlowhigh_task
         
         input_dim = 1
@@ -313,70 +319,116 @@ if __name__ == "__main__":
                 if args['use_cuda']:
                     bat = bat.cuda()
     
-                R, probs, actions, actions_idxs = model(bat)
-                # - R is [1 x batchsize] the reward per example in batch
-                # - probs is list of tensors. List len is instance_size, each 
-                #tensor is batchsize. The probability of each of the set elements
-                # - actions is list of tensors. List len is instance_size, each 
-                #tensor is batchsize x dimension. The action (which set element) to choose.
-                #e.g. for sorting, dimension is just 1 (an integer), vs. for 
-                #2D TSP, dimension is 2 (x,y).
-                #TRAINING analysis
-                #Optionally save out rewards"
-                if SAVE_OUT:
-                    R_train.append(list(R.data.numpy()))
-                      
-            
-                if batch_id == 0:
-                    critic_exp_mvg_avg = R.mean()
-                else:
-                    critic_exp_mvg_avg = (critic_exp_mvg_avg * beta) + ((1. - beta) * R.mean())
-    
-                advantage = R - critic_exp_mvg_avg
+                #If using Proximal Policy Optimization (PPO), reuse same data
+                #for a few update steps (more data efficient).
+                #**Note: this is a bit different because we have a stochastic 
+                #decoding step in our model, so not a direct comparison between
+                #old and new policy results...
+                K_sub_iters = PPO_ITERS_PER_STEP if USE_PPO else 1
+                for ppo_iter in range(K_sub_iters):
+                    R, probs, actions, actions_idxs = model(bat)
+                    # - R is [1 x batchsize] the reward per example in batch
+                    # - probs is list of tensors. List len is instance_size, each 
+                    #tensor is batchsize. The probability of each of the set elements
+                    # - actions is list of tensors. List len is instance_size, each 
+                    #tensor is batchsize x dimension. The action (which set element) to choose.
+                    #e.g. for sorting, dimension is just 1 (an integer), vs. for 
+                    #2D TSP, dimension is 2 (x,y).
+                    #TRAINING analysis
+                    #Optionally save out rewards"
+                    if SAVE_OUT:
+                        R_train.append(list(R.data.numpy()))
+                          
                 
-                logprobs = 0
-                nll = 0
-                for prob in probs: 
-                    # compute the sum of the log probs
-                    # for each tour in the batch
-                    logprob = torch.log(prob)
-                    nll += -logprob
-                    logprobs += logprob
-               
-                # guard against nan
-                nll[(nll != nll).detach()] = 0.
-                # clamp any -inf's to 0 to throw away this tour
-                logprobs[(logprobs < -1000).detach()] = 0.
-    
-                # multiply each time step by the advanrate
-                reinforce = advantage * logprobs
-                actor_loss = reinforce.mean()
-                
-                actor_optim.zero_grad()
-               
-                actor_loss.backward()
-    
-                # clip gradient norms
-                torch.nn.utils.clip_grad_norm_(model.actor_net.parameters(),
-                        float(args['max_grad_norm']), norm_type=2)
-    
-                actor_optim.step()
-                actor_scheduler.step() #!!!!!!!!!!! Move move this outside this loop to have one step per epoch??
-    
-                critic_exp_mvg_avg = critic_exp_mvg_avg.detach()
-    
-                #critic_scheduler.step() #!!!!!!!!!!! Move move this outside this loop to have one step per epoch?? 
-                #!!!!!!! Maybe this is why he says his critic was bad? Too many lr steps since doing per batch, not per eopch?
-    
-                #R = R.detach()
-                #critic_loss = critic_mse(v.squeeze(1), R)
-                #critic_optim.zero_grad()
-                #critic_loss.backward()
-                
-                #torch.nn.utils.clip_grad_norm_(model.critic_net.parameters(),
-                #        float(args['max_grad_norm']), norm_type=2)
-    
-                #critic_optim.step()
+                    if batch_id == 0:
+                        critic_exp_mvg_avg = R.mean()
+                    else:
+                        critic_exp_mvg_avg = (critic_exp_mvg_avg * beta) + ((1. - beta) * R.mean())
+        
+                    advantage = R - critic_exp_mvg_avg
+#                    print('advantage',advantage)
+#                    print('R',R)
+#                    print('critic_exp_mvg_avg',critic_exp_mvg_avg)
+                    
+                    logprobs = 0
+                    nll = 0
+                    for prob in probs: 
+                        # compute the sum of the log probs
+                        # for each tour in the batch
+                        logprob = torch.log(prob)
+                        nll += -logprob
+                        logprobs += logprob
+                   
+                    # guard against nan
+                    nll[(nll != nll).detach()] = 0.
+                    # clamp any -inf's to 0 to throw away this tour
+                    logprobs[(logprobs < -1000).detach()] = 0.
+        
+
+                    #PPO:
+                    if USE_PPO:
+                        if ppo_iter==0:
+                            logprobs_prev=logprobs
+                        ratio = logprobs / logprobs_prev
+                        if PPO_OBJECTIVE == 'vanilla':
+                            actor_loss = ratio * advantage
+                        elif PPO_OBJECTIVE == 'clipped':
+                            PPO_CLIPPED_EPSILON
+                            actor_loss = torch.min(advantage*ratio,
+                                                   advantage*torch.clamp(ratio,
+                                                                         1.-PPO_CLIPPED_EPSILON,
+                                                                         1.+PPO_CLIPPED_EPSILON)
+                                                   )
+                        
+                        
+                        actor_loss = actor_loss.mean()
+                    
+                    #vs. regular old actor-critic:
+                    elif not USE_PPO: #or iter = =0 ???????????
+                        # multiply each time step by the advanrate
+                        reinforce = advantage * logprobs                        
+                        actor_loss = reinforce.mean()
+                    
+                    #Keep the logprobs to compare to next iteration of policy
+                    logprobs_prev = logprobs.clone()
+                    
+                    actor_optim.zero_grad()
+                   
+                    if not USE_PPO:
+                        actor_loss.backward()
+                        
+                    elif USE_PPO:
+                        if ppo_iter == K_sub_iters-1:
+                            actor_loss.backward()
+                        else:
+                            actor_loss.backward(retain_graph=True)
+                        
+                        
+                    # clip gradient norms
+                    torch.nn.utils.clip_grad_norm_(model.actor_net.parameters(),
+                            float(args['max_grad_norm']), norm_type=2)
+        
+                    actor_optim.step()
+                    
+                    #Only update learning rate once per PPO batch
+                    #(on last sub iteration of PPO):
+                    if ppo_iter == K_sub_iters-1:
+                        actor_scheduler.step() #!!!!!!!!!!! Move move this outside this loop to have one step per epoch??
+        
+                    critic_exp_mvg_avg = critic_exp_mvg_avg.detach()
+        
+                    #critic_scheduler.step() #!!!!!!!!!!! Move move this outside this loop to have one step per epoch?? 
+                    #!!!!!!! Maybe this is why he says his critic was bad? Too many lr steps since doing per batch, not per eopch?
+        
+                    #R = R.detach()
+                    #critic_loss = critic_mse(v.squeeze(1), R)
+                    #critic_optim.zero_grad()
+                    #critic_loss.backward()
+                    
+                    #torch.nn.utils.clip_grad_norm_(model.critic_net.parameters(),
+                    #        float(args['max_grad_norm']), norm_type=2)
+        
+                    #critic_optim.step()
                 
                 step += 1
                 

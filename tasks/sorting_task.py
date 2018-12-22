@@ -208,7 +208,7 @@ if __name__ == '__main__':
         create_dataset(1000, 100, 'data', 10, 123, max_offset=MAX_OFFSET, scale=SCALE)
     elif int(sys.argv[1]) == 2:
 
-        sorting_data = SortingDataset('data', 'sorting-size-1000-len-10-train.txt',
+        sorting_data = SortingDataset(os.pardir(), 'data', 'sorting-size-1000-len-10-train.txt',
             'sorting-size-100-len-10-val.txt')
         
         for i in range(len(sorting_data)):
