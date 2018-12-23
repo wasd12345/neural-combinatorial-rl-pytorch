@@ -246,7 +246,7 @@ class TSPDataset(Dataset):
         return self.data_set[idx]
     
 if __name__ == '__main__':
-    DATADIR = os.path.join(os.pardir(),'data','tsp')
+    DATADIR = os.path.join(os.pardir,'data','tsp')
     if not os.path.exists(DATADIR):
         os.makedirs(DATADIR)
-    paths = download_google_drive_file(DATADIR, 'tsp', '', '5')
+    paths = download_google_drive_file(DATADIR, 'tsp', '', '50')

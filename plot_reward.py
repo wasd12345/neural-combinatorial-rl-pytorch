@@ -6,7 +6,7 @@ import numpy as np
 if __name__ == '__main__':
     
 
-    TASK = 'highlowhigh_10' #'tsp_5' #'tsp_50' #'sort_10'
+    TASK = 'tsp_50' #'highlowhigh_10' #'tsp_5' #'tsp_50' #'sort_10'
     path = os.path.join('outputs',TASK,'0')
     #path = os.path.join('outputs','sort_10','0')
     
